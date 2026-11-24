@@ -1,153 +1,75 @@
+import { escapeHTML, safeURL } from '../../../shared/utils.js';
+import { getRegionLabel } from '../../../shared/common.js';
 
-import './profile.css';
-import { getPeople } from './kiguServices.js';
+export function renderProfilePage(app, kigu) {
+    app.innerHTML = `
+        <div class="profile-page">
 
-function escapeHTML(value = '') {
-    return String(value).replace(/[&<>"']/g, char => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    })[char]);
-}
-
-function safeURL(value) {
-    try {
-        const url = new URL(value);
-        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
-    } catch {
-        return '';
-    }
-}
-
-function getEmbedURL(value) {
-    try {
-        const url = new URL(value);
-
-        if (url.hostname === 'youtu.be') {
-            return `https://www.youtube-nocookie.com/embed/${url.pathname.slice(1)}`;
-        }
-
-        if (url.hostname.endsWith('youtube.com')) {
-            const videoId = url.searchParams.get('v');
-            if (videoId) {
-                return `https://www.youtube-nocookie.com/embed/${videoId}`;
-            }
-        }
-
-        if (url.hostname.endsWith('vimeo.com')) {
-            const videoId = url.pathname.split('/').filter(Boolean).pop();
-            if (/^\d+$/.test(videoId)) {
-                return `https://player.vimeo.com/video/${videoId}`;
-            }
-        }
-    } catch {
-        return '';
-    }
-
-    return '';
-}
-
-function renderMediaItem(item) {
-    const title = escapeHTML(item.title || 'Untitled');
-    const url = safeURL(item.url);
-
-    if (!url) return '';
-
-    let content = '';
-
-    switch (item.type) {
-        case 'image':
-            content = `<img src="${escapeHTML(url)}" alt="${title}" loading="lazy">`;
-            break;
-
-        case 'video':
-            content = `
-                <video controls preload="metadata">
-                    <source src="${escapeHTML(url)}">
-                    Your browser does not support video playback.
-                </video>`;
-            break;
-
-        case 'audio':
-            content = `
-                <audio controls preload="metadata">
-                    <source src="${escapeHTML(url)}">
-                    Your browser does not support audio playback.
-                </audio>`;
-            break;
-
-        case 'embed': {
-            const embedURL = getEmbedURL(url);
-            if (!embedURL) return '';
-
-            content = `
-                <iframe
-                    src="${escapeHTML(embedURL)}"
-                    title="${title}"
-                    loading="lazy"
-                    allowfullscreen>
-                </iframe>`;
-            break;
-        }
-
-        default:
-            return '';
-    }
-
-    return `
-        <article class="profile-media-item">
-            <div class="profile-media-content">${content}</div>
-            ${item.title ? `<p>${title}</p>` : ''}
-        </article>`;
-}
-
-export function renderProfilePage(container, personId) {
-    const person = getPeople().find(p => p.id === personId);
-
-    if (!person) {
-        container.innerHTML = `
-            <section class="profile-not-found">
-                <h2>Profile not found</h2>
-                <a href="/">Back to directory</a>
-            </section>`;
-        return;
-    }
-
-    const avatar = safeURL(person.avatar);
-    const media = Array.isArray(person.media) ? person.media : [];
-
-    container.innerHTML = `
-        <main class="profile-page">
-            <a class="profile-back" href="/">← Back to directory</a>
-
+            <!-- Profile Header -->
             <section class="profile-header">
                 <div class="profile-avatar">
-                    ${avatar
-                        ? `<img src="${escapeHTML(avatar)}" alt="${escapeHTML(person.name)}">`
-                        : `<div class="profile-avatar-placeholder">
-                            ${escapeHTML(person.name?.charAt(0) || '?')}
-                           </div>`
-                    }
+                    <img src="${safeURL(kigu.avatar)}" alt="${escapeHTML(kigu.name)}">
                 </div>
 
                 <div class="profile-info">
-                    <h1>${escapeHTML(person.name)}</h1>
-                    <p class="profile-region">${escapeHTML(person.region || 'Region not specified')}</p>
-                    <p class="profile-bio">${escapeHTML(person.bio || 'No introduction yet.')}</p>
+                    <h1>${escapeHTML(kigu.name)}</h1>
+                    <p>${escapeHTML(kigu.country)} · ${escapeHTML(getRegionLabel(kigu.regionCode))}</p>
                 </div>
             </section>
 
-            <section class="profile-gallery">
-                <h2>Gallery</h2>
-
-                ${media.length
-                    ? `<div class="profile-media-grid">
-                        ${media.map(renderMediaItem).join('')}
-                       </div>`
-                    : '<p class="profile-empty">No media uploaded yet.</p>'
-                }
+            <!-- About -->
+            <section class="profile-description">
+                <h2>About</h2>
+                <p>${escapeHTML(kigu.description || '')}</p>
             </section>
-        </main>`;
+
+            <!-- Characters -->
+                <section class="profile-characters">
+                    <h2>Characters</h2>
+                    <div class="character-list">
+                        ${renderCharacters(kigu.characters)}
+                    </div>
+                </section>
+
+                <!-- Social Links -->
+                <section class="profile-social">
+                    <h2>Social Links</h2>
+                    <div class="social-list">
+                        ${renderSocialLinks(kigu.socialLinks)}
+                    </div>
+                </section>
+
+                <!-- Gallery -->
+                <section class="profile-gallery">
+                    <h2>Gallery</h2>
+                    <div class="gallery-list">
+                        ${renderGallery(kigu.gallery)}
+                    </div>
+                </section>
+        </div>
+    `;
+}
+
+function renderCharacters(characters = []) {
+    return characters.map(character => `
+        <div class="character-item" data-character-id="${escapeHTML(character.id)}">
+            <img src="${safeURL(character.image)}" alt="${escapeHTML(character.name)}">
+            <h3>${escapeHTML(character.name)}</h3>
+            <p>${escapeHTML(character.description || '')}</p>
+        </div>
+    `).join('');
+}
+
+function renderSocialLinks(links = []) {
+    return links.map(link => `
+        <a href="${safeURL(link.url)}" target="_blank" rel="noopener noreferrer">
+            ${escapeHTML(link.label)}
+        </a>
+    `).join('');
+}
+
+function renderGallery(images = []) {
+    return images.map(image => `
+        <img src="${safeURL(image.url)}" alt="${escapeHTML(image.description || '')}">
+    `).join('');
 }

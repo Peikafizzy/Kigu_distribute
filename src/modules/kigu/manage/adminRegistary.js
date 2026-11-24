@@ -1,81 +1,70 @@
 import {
+    getRegionOptions
+} from '../../../shared/common.js';
+import { escapeHTML } from '../../../shared/utils.js';
+import {
     deletePerson,
     getPeople,
     savePerson
-} from './kiguServices.js';
+} from '../kiguServices.js';
+import './admin.css';
 
-export function renderKiguPage(app) {
+export function renderKiguPage(container) {
     let people = getPeople();
     let editingId = null;
 
-    app.innerHTML = `
-    <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="brand">KIGU<span>.</span></div>
-
-            <p class="sidebar-label">MANAGEMENT</p>
-
-            <nav>
-                <a class="nav-item active" href="#">People Directory</a>
-                <a class="nav-item" href="#">Profiles</a>
-                <a class="nav-item" href="#">Settings</a>
-            </nav>
-
-            <div class="sidebar-footer">
-                Kigu Community
+    container.innerHTML = `
+    <div class="admin-page">
+        <section class="page-heading">
+            <div>
+                <h1>People Directory</h1>
+                <p>Manage your Kigu community members.</p>
             </div>
-        </aside>
+            <button id="add-person-btn" class="primary-btn">
+                + Add Person
+            </button>
+        </section>
 
-        <main class="main-content">
-            <header class="topbar">
-                <span>Management / People</span>
-                <span class="admin-label">Administrator</span>
-            </header>
-
-            <section class="page-heading">
-                <div>
-                    <h1>People Directory</h1>
-                    <p>Manage your Kigu community members.</p>
-                </div>
-
-                <button id="add-person-btn" class="primary-btn">
-                    + Add Person
-                </button>
-            </section>
-
-            <section class="stats">
+        <section class="stats">
                 <div class="stat-card">
-                    <span>Total People</span>
-                    <strong id="total-count">0</strong>
-                </div>
-            </section>
+                <span>Total People</span>
+                <strong id="total-count">0</strong>
+            </div>
+        </section>
 
-            <section class="content-card">
-                <div class="table-heading">
-                    <h2>All People</h2>
+        <section class="content-card">
+            <div class="table-heading">
+                <h2>All People</h2>
+                <div class="directory-controls">
                     <input
                         id="search-input"
                         type="search"
-                        placeholder="Search people..."
+                        placeholder="Search name, country, registration no..."
                     >
-                </div>
 
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Region</th>
-                                <th>Name</th>
-                                <th>Country</th>
-                                <th>State / Region</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="people-table"></tbody>
-                    </table>
+                    <select id="sort-select">
+                        <option value="name-asc">Name A–Z</option>
+                        <option value="name-desc">Name Z–A</option>
+                        <option value="registration-asc">Registration No.</option>
+                    </select>
                 </div>
-            </section>
-        </main>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Region</th>
+                            <th>Name</th>
+                            <th>Country</th>
+                            <th>State / Region</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="people-table"></tbody>
+                </table>
+            </div>
+        </section>
     </div>
 
     <div id="person-modal" class="modal hidden">
@@ -93,21 +82,7 @@ export function renderKiguPage(app) {
                     Kigu Region *
                     <select name="regionCode" required>
                         <option value="">Select region</option>
-                        <option value="NAM">North America</option>
-                        <option value="CAM">Central America</option>
-                        <option value="SAM">South America</option>
-                        <option value="EUR">Europe</option>
-                        <option value="SLV">Slavic</option>
-                        <option value="MEA">Middle East</option>
-                        <option value="AFR">Africa</option>
-                        <option value="OCE">Oceania</option>
-                        <option value="SEA">Southeast Asia</option>
-                        <option value="JPN">Japan</option>
-                        <option value="CHN">China</option>
-                        <option value="THM">Taiwan / Hong Kong / Macau</option>
-                        <option value="KOR">Korea</option>
-                        <option value="SAS">South Asia</option>
-                        <option value="CAS">Central Asia</option>
+                        ${getRegionOptions()}
                     </select>
                 </label>
 
@@ -153,20 +128,10 @@ export function renderKiguPage(app) {
     </div>
     `;
 
-    const table = app.querySelector('#people-table');
-    const modal = app.querySelector('#person-modal');
-    const form = app.querySelector('#person-form');
-    const search = app.querySelector('#search-input');
-
-    function escapeHTML(value = '') {
-        return String(value).replace(/[&<>"']/g, char => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        })[char]);
-    }
+    const table = container.querySelector('#people-table');
+    const modal = container.querySelector('#person-modal');
+    const form = container.querySelector('#person-form');
+    const search = container.querySelector('#search-input');
 
     
     function renderTable() {

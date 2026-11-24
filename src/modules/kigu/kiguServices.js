@@ -1,4 +1,3 @@
-
 const STORAGE_KEY = 'kigu_people';
 
 export function getPeople() {
