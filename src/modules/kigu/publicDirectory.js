@@ -1,5 +1,6 @@
 import { escapeHTML,
         safeURL } from '../../shared/utils.js';
+import {mockPeople} from './mocker/mockKigudata.js';
 
 // Main directory renderer
 export function renderPublicDirectory(container, people = []) {
@@ -45,31 +46,66 @@ export function renderPublicDirectory(container, people = []) {
     const memberGrid = container.querySelector('#member-grid');
     const count = container.querySelector('#directory-count');
 
+    // Track the currently expanded member
+    let expandedMemberId = null;
+
     // Populate country dropdown
     populateCountryOptions(countryFilter, people);
 
     // Update directory whenever filters change
     function updateDirectory() {
-
         const filteredPeople = filterAndSortPeople(
             people,
             searchInput.value,
             countryFilter.value,
             sortSelect.value
         );
+
         count.textContent =
             `Showing ${filteredPeople.length} ${filteredPeople.length === 1 ? 'member' : 'members'}`;
 
-    
-        memberGrid.innerHTML = renderMemberCards(filteredPeople);
+        memberGrid.innerHTML = renderMemberCards(
+            filteredPeople,
+            expandedMemberId
+        );
+
+        // Reset expansion if the selected member is no longer visible
+        if (
+            expandedMemberId !== null &&
+            !filteredPeople.some(
+                person => String(person.id) === String(expandedMemberId)
+            )
+        ) {
+            expandedMemberId = null;
+        }
     }
+
+    function handleMemberCardClick(event) {
+        const card = event.target.closest('.member-card');
+
+        if (!card || !memberGrid.contains(card)) return;
+
+        const memberId = card.dataset.memberId;
+
+        expandedMemberId =
+            String(expandedMemberId) === String(memberId)
+                ? null
+                : memberId;
+
+        updateDirectory();
+    }
+
 
     // Event listeners
     searchInput.addEventListener('input', updateDirectory);
     countryFilter.addEventListener('change', updateDirectory);
     sortSelect.addEventListener('change', updateDirectory);
 
+    memberGrid.addEventListener('click', handleMemberCardClick);
+
     // Initial render
+    console.log('People received:', people);
+    console.log('People count:', people.length);
     updateDirectory();
 }
 
@@ -126,61 +162,127 @@ function filterAndSortPeople(people, keyword, selectedCountry, sortOrder) {
 
 
 // Member cards
-function renderMemberCards(people) {
-
+function renderMemberCards(people, expandedMemberId) {
     if (people.length === 0) {
-        return `
-            <p class="empty-state">
-                No members found.
-            </p>
-        `;
+        return `<p class="empty-state">No members found.</p>`;
     }
 
     return people.map(person => {
-
         const name = person.name || 'Unnamed Member';
         const country = person.country || 'Unknown country';
-
+        const isExpanded = String(person.id) === String(expandedMemberId);
         const initial = name.trim().charAt(0).toUpperCase() || '?';
-
         const avatarURL = safeURL(person.avatar);
 
-        // Use an image when available, otherwise show an initial.
         const avatarContent = avatarURL
-            ? `
-                <img
-                    src="${avatarURL}"
-                    alt="${escapeHTML(name)}"
-                    loading="lazy"
-                >
-            `
-            : `
-                <span class="avatar-placeholder">
-                    ${escapeHTML(initial)}
-                </span>
-            `;
+            ? `<img src="${avatarURL}" alt="${escapeHTML(name)}" loading="lazy">`
+            : `<span class="avatar-placeholder">${escapeHTML(initial)}</span>`;
 
         const slug = person.slug || createSlug(name);
 
-        return `
-            <a
-                class="member-card"
-                href="#/directory/${encodeURIComponent(slug)}"
+        // Render the normal member card
+        const memberCard = `
+            <div
+                class="member-card ${isExpanded ? 'expanded' : ''}"
+                data-member-id="${escapeHTML(person.id)}"
+                data-member-slug="${encodeURIComponent(slug)}"
+                tabindex="0"
+                role="button"
+                aria-expanded="${isExpanded}"
             >
+                <div class="member-avatar">${avatarContent}</div>
+                <div class="member-info">
+                    <h2>${escapeHTML(name)}</h2>
+                    <p>${escapeHTML(country)}</p>
+                </div>
+            </div>
+        `;
+
+        // Render expanded content as a separate grid item
+        const expandedContent = isExpanded
+        ? renderExpandedMember(person)
+        : '';
+
+        return memberCard + expandedContent;
+
+    }).join('');;
+}
+
+function renderExpandedMember(person) {
+    const name = person.name || 'Unnamed Member';
+    const avatarURL = safeURL(person.avatar);
+    const slug = person.slug || createSlug(name);
+
+    // Keep a maximum of two valid links
+    const links = (person.links || [])
+        .slice(0, 2)
+        .map(link => {
+            const url = safeURL(link.url);
+
+            if (!url) return '';
+
+            return `
+                <a
+                    href="${escapeHTML(url)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    ${escapeHTML(link.label)}
+                </a>
+            `;
+        })
+        .filter(Boolean)
+        .join('');
+
+    const avatarContent = avatarURL
+        ? `<img src="${escapeHTML(avatarURL)}"
+                alt="${escapeHTML(name)}">`
+        : `<span class="avatar-placeholder">
+                ${escapeHTML(name.trim().charAt(0).toUpperCase() || '?')}
+            </span>`;
+
+    return `
+        <div class="member-card-expanded">
+
+            <div class="expanded-member-sidebar">
 
                 <div class="member-avatar">
                     ${avatarContent}
                 </div>
 
-                <div class="member-info">
-                    <h2>${escapeHTML(name)}</h2>
-                    <p>${escapeHTML(country)}</p>
+                <h2>${escapeHTML(name)}</h2>
+
+                <p class="expanded-member-country">
+                    ${escapeHTML(person.country || 'Unknown country')}
+                </p>
+
+                <div class="member-links">
+                    ${links}
                 </div>
 
-            </a>
-        `;
+            </div>
 
-    }).join('');
+            <div class="expanded-member-content">
+
+                <h3>Introduction</h3>
+
+                <p>
+                    ${escapeHTML(
+                        person.introduction || 'No introduction available.'
+                    )}
+                </p>
+
+                <div class="expanded-member-actions">
+                    <a href="#/kigu_profile/${encodeURIComponent(person.id)}">
+                        Read More →
+                    </a>
+                </a>
+                </div>
+
+            </div>
+
+        </div>
+    `;
 }
 
 function createSlug(name) {

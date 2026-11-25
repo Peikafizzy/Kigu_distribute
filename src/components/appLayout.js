@@ -23,8 +23,8 @@ export function renderAppLayout(app) {
                             Kigu Directory
                         </a>
 
-                        <a href="#/settings" class="nav-item">
-                            Settings
+                        <a href="#/kigu_about" class="nav-item">
+                            About
                         </a>
                     </nav>
                 </div>

@@ -7,8 +7,17 @@ export function startApp() {
 
     function renderCurrentPage() {
         const path = window.location.hash.slice(1) || '/';
-        const renderPage = routes[path];
 
+        // Match dynamic profile URL
+        const profileMatch = path.match(/^\/kigu_profile\/(\d+)$/);
+
+        if (profileMatch) {
+            routes['/kigu_profile'](pageContent, profileMatch[1]);
+            return;
+        }
+
+        // Handle static routes
+        const renderPage = routes[path];
         if (renderPage) {
             renderPage(pageContent);
         } else {
